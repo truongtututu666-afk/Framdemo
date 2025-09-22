@@ -1,7 +1,7 @@
 --[[
-    🐵 KHỈ CAM FARM [DEMO] - ULTRA FAST ATTACK
-    ⚡ SIÊU TỐC ĐỘ ĐÁNH - PHẠM VI CỰC XA
-    🎨 Full UI Integration
+    🐵 KHỈ CAM FARM [DEMO] - FIXED VERSION
+    🎨 No errors, fully protected
+    📦 Advanced Chest Farming System
 ]]
 
 -- Protect entire script
@@ -15,8 +15,6 @@ local UserInputService = game:GetService("UserInputService")
 local StarterGui = game:GetService("StarterGui")
 local Debris = game:GetService("Debris")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local VirtualInputManager = game:GetService("VirtualInputManager")
-local CollectionService = game:GetService("CollectionService")
 
 -- Safe get LocalPlayer
 local LocalPlayer = Players.LocalPlayer
@@ -30,203 +28,111 @@ local IconID = "rbxassetid://132815391220143"
 -- Variables
 local FarmingEnabled = false
 local FarmConnection = nil
+local NoclipConnection = nil
 local ChestCount = 0
 local StartTime = tick()
 
--- FAST ATTACK SETTINGS - CỰC NHANH & CỰC XA
-_G.FastAttack = true
-_G.FastAttackSpeed = 0 -- 0 = Siêu nhanh
-_G.FastAttackRange = 500 -- 500 studs - Cực xa
-_G.AttackCooldown = 0 -- No cooldown
+-- Safe check for game
+local isBloxFruits = game.PlaceId == 2753915549 or game.PlaceId == 4442272183 or game.PlaceId == 7449423635
 
--- Initialize Fast Attack System
-if _G.FastAttack then
-    local _ENV = (getgenv or getrenv or getfenv)()
-    
-    -- Safe wrapper functions
-    local function SafeWaitForChild(parent, childName)
-        local success, result = pcall(function()
-            return parent:WaitForChild(childName, 5)
-        end)
-        return success and result or nil
+-- Safe get workspace locations
+local Locations = nil
+pcall(function()
+    if workspace:FindFirstChild("_WorldOrigin") then
+        Locations = workspace._WorldOrigin:FindFirstChild("Locations")
     end
-    
-    -- Get game remotes
-    local Remotes = SafeWaitForChild(ReplicatedStorage, "Remotes")
-    local Modules = SafeWaitForChild(ReplicatedStorage, "Modules")
-    local Net = Modules and SafeWaitForChild(Modules, "Net")
-    
-    -- Ultra Fast Attack Configuration
-    local UltraFastAttack = {
-        Distance = _G.FastAttackRange or 500, -- SIÊU XA
-        AttackSpeed = _G.FastAttackSpeed or 0, -- SIÊU NHANH
-        attackMobs = true,
-        attackPlayers = true,
-        NoClip = true,
-        MultiHit = true, -- Đánh nhiều mục tiêu cùng lúc
-        MaxTargets = 50 -- Đánh tối đa 50 mục tiêu
-    }
-    
-    -- Enhanced Attack Function
-    local function SuperFastAttack()
-        spawn(function()
-            while _G.FastAttack do
-                pcall(function()
-                    local Character = LocalPlayer.Character
-                    if not Character then return end
-                    
-                    local Tool = Character:FindFirstChildOfClass("Tool")
-                    if not Tool then return end
-                    
-                    -- Collect all enemies in range
-                    local AllTargets = {}
-                    
-                    -- Check Enemies folder
-                    if workspace:FindFirstChild("Enemies") then
-                        for _, Enemy in pairs(workspace.Enemies:GetChildren()) do
-                            if Enemy:FindFirstChild("Humanoid") and Enemy:FindFirstChild("HumanoidRootPart") then
-                                local Distance = (Enemy.HumanoidRootPart.Position - Character.HumanoidRootPart.Position).Magnitude
-                                if Distance <= UltraFastAttack.Distance and Enemy.Humanoid.Health > 0 then
-                                    table.insert(AllTargets, Enemy)
-                                end
-                            end
-                        end
-                    end
-                    
-                    -- Check Characters folder (PvP)
-                    if workspace:FindFirstChild("Characters") and UltraFastAttack.attackPlayers then
-                        for _, Player in pairs(workspace.Characters:GetChildren()) do
-                            if Player ~= Character and Player:FindFirstChild("Humanoid") and Player:FindFirstChild("HumanoidRootPart") then
-                                local Distance = (Player.HumanoidRootPart.Position - Character.HumanoidRootPart.Position).Magnitude
-                                if Distance <= UltraFastAttack.Distance and Player.Humanoid.Health > 0 then
-                                    table.insert(AllTargets, Player)
-                                end
-                            end
-                        end
-                    end
-                    
-                    -- ULTRA FAST MULTI-HIT ATTACK
-                    if #AllTargets > 0 then
-                        -- Fire multiple attacks simultaneously
-                        for i = 1, math.min(#AllTargets, UltraFastAttack.MaxTargets) do
-                            local Target = AllTargets[i]
-                            
-                            -- Method 1: Direct attack
-                            if Net then
-                                local RegisterAttack = Net:FindFirstChild("RE/RegisterAttack")
-                                local RegisterHit = Net:FindFirstChild("RE/RegisterHit")
-                                
-                                if RegisterAttack and RegisterHit then
-                                    RegisterAttack:FireServer(0)
-                                    RegisterHit:FireServer(Target.Head or Target.HumanoidRootPart, {{Target, Target.HumanoidRootPart}})
-                                end
-                            end
-                            
-                            -- Method 2: Tool remote
-                            if Tool:FindFirstChild("RemoteFunctionShoot") then
-                                Tool.RemoteFunctionShoot:InvokeServer(Target.HumanoidRootPart.Position, Target.HumanoidRootPart)
-                            end
-                            
-                            -- Method 3: Click remote
-                            if Tool:FindFirstChild("LeftClickRemote") then
-                                local Direction = (Target.HumanoidRootPart.Position - Character.HumanoidRootPart.Position).Unit
-                                Tool.LeftClickRemote:FireServer(Direction, 1)
-                            end
-                            
-                            -- Method 4: CommF attack
-                            if Remotes and Remotes:FindFirstChild("CommF_") then
-                                Remotes.CommF_:InvokeServer("AttackNoCD", Target)
-                            end
-                        end
-                    end
-                end)
-                
-                wait(UltraFastAttack.AttackSpeed) -- Siêu nhanh
-            end
-        end)
-    end
-    
-    -- Start Ultra Fast Attack
-    SuperFastAttack()
-    
-    -- Alternative fast attack method
-    spawn(function()
-        local remote, idremote
-        for _, v in pairs({ReplicatedStorage.Util, ReplicatedStorage.Common, ReplicatedStorage.Remotes, ReplicatedStorage.Assets, ReplicatedStorage.FX}) do
-            pcall(function()
-                for _, n in pairs(v:GetChildren()) do
-                    if n:IsA("RemoteEvent") and n:GetAttribute("Id") then
-                        remote, idremote = n, n:GetAttribute("Id")
-                    end
-                end
-            end)
-        end
-        
-        while _G.FastAttack do
-            pcall(function()
-                local char = LocalPlayer.Character
-                local root = char and char:FindFirstChild("HumanoidRootPart")
-                local parts = {}
-                
-                for _, x in ipairs({workspace.Enemies, workspace.Characters}) do
-                    for _, v in ipairs(x and x:GetChildren() or {}) do
-                        local hrp = v:FindFirstChild("HumanoidRootPart")
-                        local hum = v:FindFirstChild("Humanoid")
-                        if v ~= char and hrp and hum and hum.Health > 0 and (hrp.Position - root.Position).Magnitude <= _G.FastAttackRange then
-                            for _, _v in ipairs(v:GetChildren()) do
-                                if _v:IsA("BasePart") then
-                                    parts[#parts+1] = {v, _v}
-                                end
-                            end
-                        end
-                    end
-                end
-                
-                local tool = char:FindFirstChildOfClass("Tool")
-                if #parts > 0 and tool then
-                    -- Super fast multi-hit
-                    for i = 1, 10 do -- Hit 10 times per frame
-                        pcall(function()
-                            if Modules and Net then
-                                require(Modules.Net):RemoteEvent("RegisterHit", true)
-                                game.ReplicatedStorage.Modules.Net["RE/RegisterAttack"]:FireServer()
-                                local head = parts[1][1]:FindFirstChild("Head")
-                                if head then
-                                    game.ReplicatedStorage.Modules.Net["RE/RegisterHit"]:FireServer(head, parts)
-                                end
-                            end
-                        end)
-                    end
-                end
-            end)
-            wait(_G.FastAttackSpeed)
-        end
-    end)
-end
+end)
 
--- Safe functions from original
+-- Safe character function
 local function getCharacter()
     local char = LocalPlayer.Character
     if not char then
         char = LocalPlayer.CharacterAdded:Wait()
     end
+    
+    -- Wait for essential parts
+    local humanoid = char:WaitForChild("Humanoid", 5)
+    local rootPart = char:WaitForChild("HumanoidRootPart", 5) or char:WaitForChild("Torso", 5)
+    
+    if not humanoid or not rootPart then
+        warn("Character parts not found!")
+        return nil
+    end
+    
     return char
 end
 
+-- Safe distance sort
+local function DistanceFromPlrSort(ObjectList)
+    local char = getCharacter()
+    if not char then return end
+    
+    local RootPart = char:FindFirstChild("LowerTorso") or 
+                     char:FindFirstChild("HumanoidRootPart") or 
+                     char:FindFirstChild("Torso")
+    
+    if not RootPart then return end
+    
+    pcall(function()
+        table.sort(ObjectList, function(ChestA, ChestB)
+            if not ChestA or not ChestB then return false end
+            if not ChestA.Parent or not ChestB.Parent then return false end
+            
+            local RootPos = RootPart.Position
+            local DistanceA = (RootPos - ChestA.Position).Magnitude
+            local DistanceB = (RootPos - ChestB.Position).Magnitude
+            return DistanceA < DistanceB
+        end)
+    end)
+end
+
+-- Safe chest finder
+local UncheckedChests, FirstRun = {}, true
 local function getChestsSorted()
     local Chests = {}
+    
     pcall(function()
-        for _, Object in pairs(workspace:GetDescendants()) do
-            if Object:IsA("Part") and Object.Name:find("Chest") then
-                if Object:FindFirstChild("TouchInterest") then
-                    table.insert(Chests, Object)
+        if FirstRun then
+            FirstRun = false
+            for _, Object in pairs(workspace:GetDescendants()) do
+                if Object:IsA("Part") and Object.Name:find("Chest") then
+                    table.insert(UncheckedChests, Object)
                 end
             end
         end
+        
+        for i = #UncheckedChests, 1, -1 do
+            local Chest = UncheckedChests[i]
+            if Chest and Chest.Parent then
+                if Chest:FindFirstChild("TouchInterest") then
+                    table.insert(Chests, Chest)
+                end
+            else
+                table.remove(UncheckedChests, i)
+            end
+        end
+        
+        DistanceFromPlrSort(Chests)
     end)
+    
     return Chests
 end
 
+-- Safe noclip toggle
+local function toggleNoclip(Toggle)
+    local char = getCharacter()
+    if not char then return end
+    
+    pcall(function()
+        for _, v in pairs(char:GetChildren()) do
+            if v:IsA("BasePart") and v.Name ~= "HumanoidRootPart" then
+                v.CanCollide = not Toggle
+            end
+        end
+    end)
+end
+
+-- Safe teleport
 local function Teleport(Goal)
     local char = getCharacter()
     if not char then return end
@@ -235,20 +141,52 @@ local function Teleport(Goal)
     if not RootPart then return end
     
     pcall(function()
+        toggleNoclip(true)
         RootPart.CFrame = Goal + Vector3.new(0, 3, 0)
+        wait(0.1)
+        toggleNoclip(false)
     end)
 end
 
--- Create GUI
-local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "KhiCamFarmGUI"
-ScreenGui.ResetOnSpawn = false
-ScreenGui.Parent = LocalPlayer.PlayerGui
+-- Safe notification
+local function SafeNotify(title, text, duration)
+    pcall(function()
+        StarterGui:SetCore("SendNotification", {
+            Title = title,
+            Text = text,
+            Icon = IconID,
+            Duration = duration or 3
+        })
+    end)
+end
+
+-- Create GUI safely
+local ScreenGui = nil
+pcall(function()
+    ScreenGui = Instance.new("ScreenGui")
+    ScreenGui.Name = "KhiCamFarmGUI"
+    ScreenGui.ResetOnSpawn = false
+    ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+    
+    if LocalPlayer:FindFirstChild("PlayerGui") then
+        ScreenGui.Parent = LocalPlayer.PlayerGui
+    else
+        warn("PlayerGui not found!")
+        return
+    end
+end)
+
+if not ScreenGui then
+    warn("Failed to create GUI!")
+    return
+end
 
 -- Toggle Button
 local ToggleButton = Instance.new("ImageButton")
+ToggleButton.Name = "ToggleButton"
 ToggleButton.Image = IconID
 ToggleButton.BackgroundColor3 = Color3.fromRGB(255, 140, 0)
+ToggleButton.BorderSizePixel = 0
 ToggleButton.Position = UDim2.new(0, 10, 0.5, -40)
 ToggleButton.Size = UDim2.new(0, 80, 0, 80)
 ToggleButton.Parent = ScreenGui
@@ -257,11 +195,36 @@ local ToggleCorner = Instance.new("UICorner")
 ToggleCorner.CornerRadius = UDim.new(1, 0)
 ToggleCorner.Parent = ToggleButton
 
+local ToggleStroke = Instance.new("UIStroke")
+ToggleStroke.Color = Color3.fromRGB(255, 200, 0)
+ToggleStroke.Thickness = 3
+ToggleStroke.Parent = ToggleButton
+
+-- Safe animation
+spawn(function()
+    pcall(function()
+        while ToggleButton.Parent do
+            TweenService:Create(ToggleButton, TweenInfo.new(1, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {
+                Size = UDim2.new(0, 85, 0, 85),
+                Rotation = 5
+            }):Play()
+            wait(1)
+            TweenService:Create(ToggleButton, TweenInfo.new(1, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {
+                Size = UDim2.new(0, 80, 0, 80),
+                Rotation = -5
+            }):Play()
+            wait(1)
+        end
+    end)
+end)
+
 -- Main Frame
 local MainFrame = Instance.new("Frame")
+MainFrame.Name = "MainFrame"
 MainFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 20)
-MainFrame.Position = UDim2.new(0.5, -250, 0.5, -300)
-MainFrame.Size = UDim2.new(0, 500, 0, 600)
+MainFrame.BorderSizePixel = 0
+MainFrame.Position = UDim2.new(0.5, -250, 0.5, -250)
+MainFrame.Size = UDim2.new(0, 500, 0, 500)
 MainFrame.Visible = false
 MainFrame.Active = true
 MainFrame.Draggable = true
@@ -274,21 +237,24 @@ MainCorner.Parent = MainFrame
 -- Gradient
 local MainGradient = Instance.new("UIGradient")
 MainGradient.Color = ColorSequence.new{
-    ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 0, 0)),
-    ColorSequenceKeypoint.new(0.5, Color3.fromRGB(255, 140, 0)),
-    ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 255, 0))
+    ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 100, 0)),
+    ColorSequenceKeypoint.new(0.5, Color3.fromRGB(255, 0, 100)),
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(100, 0, 255))
 }
 MainGradient.Rotation = 0
 MainGradient.Parent = MainFrame
 
--- Animate gradient
+-- Safe gradient animation
 spawn(function()
-    while true do
-        for i = 0, 360, 5 do
-            MainGradient.Rotation = i
-            wait(0.05)
+    pcall(function()
+        while MainFrame.Parent do
+            for i = 0, 360, 2 do
+                if not MainGradient.Parent then break end
+                MainGradient.Rotation = i
+                wait(0.05)
+            end
         end
-    end
+    end)
 end)
 
 -- Inner Frame
@@ -302,20 +268,55 @@ local InnerCorner = Instance.new("UICorner")
 InnerCorner.CornerRadius = UDim.new(0, 23)
 InnerCorner.Parent = InnerFrame
 
--- Title
+-- Title Bar
+local TitleBar = Instance.new("Frame")
+TitleBar.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
+TitleBar.Size = UDim2.new(1, 0, 0, 60)
+TitleBar.Parent = InnerFrame
+
+local TitleCorner = Instance.new("UICorner")
+TitleCorner.CornerRadius = UDim.new(0, 23)
+TitleCorner.Parent = TitleBar
+
+-- Title Icon
+local TitleIcon = Instance.new("ImageLabel")
+TitleIcon.Image = IconID
+TitleIcon.BackgroundTransparency = 1
+TitleIcon.Position = UDim2.new(0, 15, 0.5, -25)
+TitleIcon.Size = UDim2.new(0, 50, 0, 50)
+TitleIcon.Parent = TitleBar
+
+-- Title Text
 local TitleText = Instance.new("TextLabel")
-TitleText.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
-TitleText.Size = UDim2.new(1, 0, 0, 60)
+TitleText.BackgroundTransparency = 1
+TitleText.Position = UDim2.new(0, 75, 0, 0)
+TitleText.Size = UDim2.new(0.7, 0, 1, 0)
 TitleText.Font = Enum.Font.GothamBold
 TitleText.RichText = true
-TitleText.Text = '🐵 KHỈ CAM FARM <font color="rgb(255,0,0)">[ULTRA FAST]</font>'
+TitleText.Text = '🐵 KHỈ CAM FARM <font color="rgb(255,140,0)">[DEMO]</font>'
 TitleText.TextColor3 = Color3.fromRGB(255, 255, 255)
 TitleText.TextSize = 22
-TitleText.Parent = InnerFrame
+TitleText.Parent = TitleBar
+
+-- Close Button
+local CloseButton = Instance.new("TextButton")
+CloseButton.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
+CloseButton.Position = UDim2.new(1, -45, 0.5, -15)
+CloseButton.Size = UDim2.new(0, 30, 0, 30)
+CloseButton.Font = Enum.Font.GothamBold
+CloseButton.Text = "✖"
+CloseButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+CloseButton.TextSize = 18
+CloseButton.Parent = TitleBar
+
+local CloseCorner = Instance.new("UICorner")
+CloseCorner.CornerRadius = UDim.new(1, 0)
+CloseCorner.Parent = CloseButton
 
 -- Content
 local ContentFrame = Instance.new("ScrollingFrame")
 ContentFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
+ContentFrame.BorderSizePixel = 0
 ContentFrame.Position = UDim2.new(0, 15, 0, 70)
 ContentFrame.Size = UDim2.new(1, -30, 1, -85)
 ContentFrame.ScrollBarThickness = 8
@@ -325,210 +326,232 @@ local ContentCorner = Instance.new("UICorner")
 ContentCorner.CornerRadius = UDim.new(0, 20)
 ContentCorner.Parent = ContentFrame
 
--- FAST ATTACK SECTION
-local FastAttackTitle = Instance.new("TextLabel")
-FastAttackTitle.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
-FastAttackTitle.Position = UDim2.new(0, 10, 0, 10)
-FastAttackTitle.Size = UDim2.new(1, -20, 0, 40)
-FastAttackTitle.Font = Enum.Font.GothamBold
-FastAttackTitle.Text = "⚡ ULTRA FAST ATTACK ⚡"
-FastAttackTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
-FastAttackTitle.TextSize = 18
-FastAttackTitle.Parent = ContentFrame
+-- Status Display
+local StatusLabel = Instance.new("TextLabel")
+StatusLabel.BackgroundColor3 = Color3.fromRGB(35, 35, 40)
+StatusLabel.Position = UDim2.new(0, 10, 0, 10)
+StatusLabel.Size = UDim2.new(1, -20, 0, 40)
+StatusLabel.Font = Enum.Font.GothamBold
+StatusLabel.Text = "FARM STATUS: INACTIVE"
+StatusLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
+StatusLabel.TextSize = 18
+StatusLabel.Parent = ContentFrame
 
-local AttackCorner = Instance.new("UICorner")
-AttackCorner.CornerRadius = UDim.new(0, 10)
-AttackCorner.Parent = FastAttackTitle
+local StatusCorner = Instance.new("UICorner")
+StatusCorner.CornerRadius = UDim.new(0, 10)
+StatusCorner.Parent = StatusLabel
 
--- Fast Attack Toggle
-local FastAttackButton = Instance.new("TextButton")
-FastAttackButton.BackgroundColor3 = _G.FastAttack and Color3.fromRGB(50, 255, 50) or Color3.fromRGB(255, 50, 50)
-FastAttackButton.Position = UDim2.new(0.5, -100, 0, 60)
-FastAttackButton.Size = UDim2.new(0, 200, 0, 50)
-FastAttackButton.Font = Enum.Font.GothamBold
-FastAttackButton.Text = _G.FastAttack and "🔥 FAST ATTACK: ON" or "❌ FAST ATTACK: OFF"
-FastAttackButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-FastAttackButton.TextSize = 16
-FastAttackButton.Parent = ContentFrame
+-- Info Labels
+local ChestLabel = Instance.new("TextLabel")
+ChestLabel.BackgroundTransparency = 1
+ChestLabel.Position = UDim2.new(0, 10, 0, 60)
+ChestLabel.Size = UDim2.new(1, -20, 0, 30)
+ChestLabel.Font = Enum.Font.Gotham
+ChestLabel.Text = "📦 Chests Collected: 0"
+ChestLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+ChestLabel.TextSize = 16
+ChestLabel.Parent = ContentFrame
 
-local FastCorner = Instance.new("UICorner")
-FastCorner.CornerRadius = UDim.new(0, 15)
-FastCorner.Parent = FastAttackButton
-
--- Speed Slider
-local SpeedLabel = Instance.new("TextLabel")
-SpeedLabel.BackgroundTransparency = 1
-SpeedLabel.Position = UDim2.new(0, 10, 0, 120)
-SpeedLabel.Size = UDim2.new(1, -20, 0, 30)
-SpeedLabel.Font = Enum.Font.Gotham
-SpeedLabel.Text = "⚡ Attack Speed: ULTRA FAST (0ms)"
-SpeedLabel.TextColor3 = Color3.fromRGB(255, 200, 0)
-SpeedLabel.TextSize = 14
-SpeedLabel.Parent = ContentFrame
-
--- Range Slider
-local RangeLabel = Instance.new("TextLabel")
-RangeLabel.BackgroundTransparency = 1
-RangeLabel.Position = UDim2.new(0, 10, 0, 150)
-RangeLabel.Size = UDim2.new(1, -20, 0, 30)
-RangeLabel.Font = Enum.Font.Gotham
-RangeLabel.Text = "📏 Attack Range: " .. _G.FastAttackRange .. " studs"
-RangeLabel.TextColor3 = Color3.fromRGB(255, 200, 0)
-RangeLabel.TextSize = 14
-RangeLabel.Parent = ContentFrame
-
--- Range Input
-local RangeInput = Instance.new("TextBox")
-RangeInput.BackgroundColor3 = Color3.fromRGB(40, 40, 45)
-RangeInput.Position = UDim2.new(0, 10, 0, 180)
-RangeInput.Size = UDim2.new(1, -20, 0, 35)
-RangeInput.Font = Enum.Font.Gotham
-RangeInput.PlaceholderText = "Enter attack range (50-1000)"
-RangeInput.Text = tostring(_G.FastAttackRange)
-RangeInput.TextColor3 = Color3.fromRGB(255, 255, 255)
-RangeInput.TextSize = 14
-RangeInput.Parent = ContentFrame
-
-local InputCorner = Instance.new("UICorner")
-InputCorner.CornerRadius = UDim.new(0, 8)
-InputCorner.Parent = RangeInput
-
-RangeInput.FocusLost:Connect(function()
-    local newRange = tonumber(RangeInput.Text)
-    if newRange and newRange >= 50 and newRange <= 1000 then
-        _G.FastAttackRange = newRange
-        RangeLabel.Text = "📏 Attack Range: " .. _G.FastAttackRange .. " studs"
-    end
-end)
-
--- Farm Section
-local FarmTitle = Instance.new("TextLabel")
-FarmTitle.BackgroundColor3 = Color3.fromRGB(100, 100, 255)
-FarmTitle.Position = UDim2.new(0, 10, 0, 230)
-FarmTitle.Size = UDim2.new(1, -20, 0, 40)
-FarmTitle.Font = Enum.Font.GothamBold
-FarmTitle.Text = "📦 CHEST FARM"
-FarmTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
-FarmTitle.TextSize = 18
-FarmTitle.Parent = ContentFrame
-
-local FarmCorner = Instance.new("UICorner")
-FarmCorner.CornerRadius = UDim.new(0, 10)
-FarmCorner.Parent = FarmTitle
+local TimeLabel = Instance.new("TextLabel")
+TimeLabel.BackgroundTransparency = 1
+TimeLabel.Position = UDim2.new(0, 10, 0, 90)
+TimeLabel.Size = UDim2.new(1, -20, 0, 30)
+TimeLabel.Font = Enum.Font.Gotham
+TimeLabel.Text = "⏰ Farm Time: 00:00:00"
+TimeLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+TimeLabel.TextSize = 16
+TimeLabel.Parent = ContentFrame
 
 -- Farm Button
 local FarmButton = Instance.new("TextButton")
 FarmButton.BackgroundColor3 = Color3.fromRGB(50, 200, 50)
-FarmButton.Position = UDim2.new(0.5, -100, 0, 280)
-FarmButton.Size = UDim2.new(0, 200, 0, 50)
+FarmButton.Position = UDim2.new(0.5, -100, 0, 130)
+FarmButton.Size = UDim2.new(0, 200, 0, 60)
 FarmButton.Font = Enum.Font.GothamBold
-FarmButton.Text = "🚀 START FARM"
+FarmButton.Text = "🚀 START FARMING"
 FarmButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-FarmButton.TextSize = 16
+FarmButton.TextSize = 18
 FarmButton.Parent = ContentFrame
 
-local FarmButtonCorner = Instance.new("UICorner")
-FarmButtonCorner.CornerRadius = UDim.new(0, 15)
-FarmButtonCorner.Parent = FarmButton
+local FarmCorner = Instance.new("UICorner")
+FarmCorner.CornerRadius = UDim.new(0, 15)
+FarmCorner.Parent = FarmButton
 
--- Stats
-local StatsLabel = Instance.new("TextLabel")
-StatsLabel.BackgroundColor3 = Color3.fromRGB(35, 35, 40)
-StatsLabel.Position = UDim2.new(0, 10, 0, 340)
-StatsLabel.Size = UDim2.new(1, -20, 0, 100)
-StatsLabel.Font = Enum.Font.Gotham
-StatsLabel.Text = "📊 STATISTICS\n\n📦 Chests: 0\n⚔️ Enemies Killed: 0\n⏰ Time: 00:00:00"
-StatsLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
-StatsLabel.TextSize = 14
-StatsLabel.TextYAlignment = Enum.TextYAlignment.Top
-StatsLabel.Parent = ContentFrame
+-- Warning if not Blox Fruits
+if not isBloxFruits then
+    local WarningLabel = Instance.new("TextLabel")
+    WarningLabel.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
+    WarningLabel.Position = UDim2.new(0, 10, 0, 200)
+    WarningLabel.Size = UDim2.new(1, -20, 0, 60)
+    WarningLabel.Font = Enum.Font.GothamBold
+    WarningLabel.Text = "⚠️ WARNING: This is not Blox Fruits!\nScript may not work properly!"
+    WarningLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    WarningLabel.TextSize = 14
+    WarningLabel.Parent = ContentFrame
+    
+    local WarningCorner = Instance.new("UICorner")
+    WarningCorner.CornerRadius = UDim.new(0, 10)
+    WarningCorner.Parent = WarningLabel
+end
 
-local StatsCorner = Instance.new("UICorner")
-StatsCorner.CornerRadius = UDim.new(0, 10)
-StatsCorner.Parent = StatsLabel
+ContentFrame.CanvasSize = UDim2.new(0, 0, 0, 300)
 
-ContentFrame.CanvasSize = UDim2.new(0, 0, 0, 500)
-
--- Toggle functions
-FastAttackButton.MouseButton1Click:Connect(function()
-    _G.FastAttack = not _G.FastAttack
-    FastAttackButton.Text = _G.FastAttack and "🔥 FAST ATTACK: ON" or "❌ FAST ATTACK: OFF"
-    FastAttackButton.BackgroundColor3 = _G.FastAttack and Color3.fromRGB(50, 255, 50) or Color3.fromRGB(255, 50, 50)
-end)
-
+-- Safe farm toggle
 local function toggleFarm()
     FarmingEnabled = not FarmingEnabled
     
     if FarmingEnabled then
-        FarmButton.Text = "⏹️ STOP FARM"
         StartTime = tick()
+        ChestCount = 0
         
-        FarmConnection = spawn(function()
+        FarmButton.Text = "⏹️ STOP FARMING"
+        StatusLabel.Text = "FARM STATUS: ACTIVE"
+        StatusLabel.TextColor3 = Color3.fromRGB(50, 255, 50)
+        
+        SafeNotify("🐵 KHỈ CAM FARM", "Chest farming started!", 3)
+        
+        -- Safe farming loop
+        FarmConnection = task.spawn(function()
             while FarmingEnabled do
                 pcall(function()
+                    task.wait()
                     local Chests = getChestsSorted()
-                    if #Chests > 0 then
+                    if Chests and #Chests > 0 then
                         Teleport(Chests[1].CFrame)
                         ChestCount = ChestCount + 1
+                        ChestLabel.Text = "📦 Chests Collected: " .. ChestCount
                     end
                 end)
-                wait(0.1)
             end
         end)
-    else
-        FarmButton.Text = "🚀 START FARM"
-        if FarmConnection then
-            FarmConnection = nil
+        
+        -- Safe team set (only for Blox Fruits)
+        if isBloxFruits then
+            task.spawn(function()
+                while FarmingEnabled do
+                    task.wait(5)
+                    pcall(function()
+                        if ReplicatedStorage:FindFirstChild("Remotes") then
+                            local CommF = ReplicatedStorage.Remotes:FindFirstChild("CommF_")
+                            if CommF then
+                                CommF:InvokeServer("SetTeam", "Marines")
+                            end
+                        end
+                    end)
+                end
+            end)
         end
+        
+    else
+        FarmButton.Text = "🚀 START FARMING"
+        StatusLabel.Text = "FARM STATUS: INACTIVE"
+        StatusLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
+        
+        if FarmConnection then
+            pcall(function() task.cancel(FarmConnection) end)
+        end
+        
+        SafeNotify("🐵 KHỈ CAM FARM", "Chest farming stopped!", 3)
     end
 end
 
-FarmButton.MouseButton1Click:Connect(toggleFarm)
-
--- Update stats
-local enemiesKilled = 0
-spawn(function()
-    while true do
-        if FarmingEnabled then
-            local runtime = tick() - StartTime
-            local hours = math.floor(runtime / 3600)
-            local minutes = math.floor((runtime % 3600) / 60)
-            local seconds = math.floor(runtime % 60)
-            
-            StatsLabel.Text = string.format("📊 STATISTICS\n\n📦 Chests: %d\n⚔️ Enemies Killed: %d\n⏰ Time: %02d:%02d:%02d",
-                ChestCount, enemiesKilled, hours, minutes, seconds)
-        end
-        wait(1)
-    end
+-- Safe button connection
+pcall(function()
+    FarmButton.MouseButton1Click:Connect(toggleFarm)
 end)
 
--- Toggle UI
+-- Safe timer update
+spawn(function()
+    pcall(function()
+        while ScreenGui.Parent do
+            if FarmingEnabled then
+                local runtime = tick() - StartTime
+                local hours = math.floor(runtime / 3600)
+                local minutes = math.floor((runtime % 3600) / 60)
+                local seconds = math.floor(runtime % 60)
+                TimeLabel.Text = string.format("⏰ Farm Time: %02d:%02d:%02d", hours, minutes, seconds)
+            end
+            wait(1)
+        end
+    end)
+end)
+
+-- Safe UI toggle
 local UIVisible = false
-ToggleButton.MouseButton1Click:Connect(function()
+local function toggleUI()
     UIVisible = not UIVisible
-    MainFrame.Visible = UIVisible
     
-    if UIVisible then
-        TweenService:Create(MainFrame, TweenInfo.new(0.5, Enum.EasingStyle.Back), {
-            Size = UDim2.new(0, 500, 0, 600)
-        }):Play()
-    end
+    pcall(function()
+        if UIVisible then
+            MainFrame.Visible = true
+            MainFrame.Size = UDim2.new(0, 0, 0, 0)
+            MainFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
+            
+            TweenService:Create(MainFrame, TweenInfo.new(0.5, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+                Size = UDim2.new(0, 500, 0, 500),
+                Position = UDim2.new(0.5, -250, 0.5, -250)
+            }):Play()
+            
+            SafeNotify("🐵 KHỈ CAM FARM [DEMO]", "UI Opened!", 2)
+        else
+            TweenService:Create(MainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.In), {
+                Size = UDim2.new(0, 0, 0, 0),
+                Position = UDim2.new(0.5, 0, 0.5, 0)
+            }):Play()
+            
+            wait(0.3)
+            MainFrame.Visible = false
+        end
+    end)
+end
+
+-- Safe button connections
+pcall(function()
+    ToggleButton.MouseButton1Click:Connect(toggleUI)
+    CloseButton.MouseButton1Click:Connect(toggleUI)
+end)
+
+-- Safe rainbow effect
+spawn(function()
+    pcall(function()
+        while ToggleStroke.Parent do
+            for i = 0, 360, 5 do
+                if not ToggleStroke.Parent then break end
+                ToggleStroke.Color = Color3.fromHSV(i/360, 1, 1)
+                wait(0.05)
+            end
+        end
+    end)
+end)
+
+-- Safe character respawn handler
+pcall(function()
+    LocalPlayer.CharacterAdded:Connect(function()
+        task.wait(1)
+        if FarmingEnabled then
+            toggleFarm() -- Restart
+            toggleFarm()
+        end
+    end)
 end)
 
 -- Initial notification
-pcall(function()
-    StarterGui:SetCore("SendNotification", {
-        Title = "🐵 KHỈ CAM ULTRA FAST",
-        Text = "Loaded! Fast Attack is " .. (_G.FastAttack and "ON" or "OFF"),
-        Icon = IconID,
-        Duration = 5
-    })
-end)
+SafeNotify("🐵 KHỈ CAM FARM [DEMO]", "Script loaded successfully!", 5)
 
-print("🐵 Khỉ Cam Farm [ULTRA FAST ATTACK] - Loaded!")
+print("🐵 Khỉ Cam Farm [DEMO] - Loaded without errors!")
 
 end) -- End of main pcall
 
+-- Error handling
 if not success then
     warn("Script error: " .. tostring(err))
+    
+    -- Try to show error notification
+    pcall(function()
+        game:GetService("StarterGui"):SetCore("SendNotification", {
+            Title = "❌ SCRIPT ERROR",
+            Text = "Failed to load! Check console (F9)",
+            Duration = 10
+        })
+    end)
 end
