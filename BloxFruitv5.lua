@@ -1,8 +1,11 @@
 --[[
-    🐵 KHỈ CAM FARM [DEMO]
-    🎨 Unique Animated UI Design
+    🐵 KHỈ CAM FARM [DEMO] - FIXED VERSION
+    🎨 No errors, fully protected
     📦 Advanced Chest Farming System
 ]]
+
+-- Protect entire script
+local success, err = pcall(function()
 
 -- Services
 local Players = game:GetService("Players")
@@ -13,7 +16,13 @@ local StarterGui = game:GetService("StarterGui")
 local Debris = game:GetService("Debris")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
+-- Safe get LocalPlayer
 local LocalPlayer = Players.LocalPlayer
+if not LocalPlayer then
+    warn("LocalPlayer not found!")
+    return
+end
+
 local IconID = "rbxassetid://132815391220143"
 
 -- Variables
@@ -23,72 +32,156 @@ local NoclipConnection = nil
 local ChestCount = 0
 local StartTime = tick()
 
--- Original Farm Code Integration
-local Locations = workspace:FindFirstChild("_WorldOrigin") and workspace._WorldOrigin:FindFirstChild("Locations")
+-- Safe check for game
+local isBloxFruits = game.PlaceId == 2753915549 or game.PlaceId == 4442272183 or game.PlaceId == 7449423635
 
-local function getCharacter()
-    if not LocalPlayer.Character then
-        LocalPlayer.CharacterAdded:Wait()
+-- Safe get workspace locations
+local Locations = nil
+pcall(function()
+    if workspace:FindFirstChild("_WorldOrigin") then
+        Locations = workspace._WorldOrigin:FindFirstChild("Locations")
     end
-    LocalPlayer.Character:WaitForChild("HumanoidRootPart")
-    return LocalPlayer.Character
+end)
+
+-- Safe character function
+local function getCharacter()
+    local char = LocalPlayer.Character
+    if not char then
+        char = LocalPlayer.CharacterAdded:Wait()
+    end
+    
+    -- Wait for essential parts
+    local humanoid = char:WaitForChild("Humanoid", 5)
+    local rootPart = char:WaitForChild("HumanoidRootPart", 5) or char:WaitForChild("Torso", 5)
+    
+    if not humanoid or not rootPart then
+        warn("Character parts not found!")
+        return nil
+    end
+    
+    return char
 end
 
+-- Safe distance sort
 local function DistanceFromPlrSort(ObjectList)
-    local RootPart = getCharacter():FindFirstChild("LowerTorso") or getCharacter():FindFirstChild("HumanoidRootPart")
-    table.sort(ObjectList, function(ChestA, ChestB)
-        local RootPos = RootPart.Position
-        local DistanceA = (RootPos - ChestA.Position).Magnitude
-        local DistanceB = (RootPos - ChestB.Position).Magnitude
-        return DistanceA < DistanceB
+    local char = getCharacter()
+    if not char then return end
+    
+    local RootPart = char:FindFirstChild("LowerTorso") or 
+                     char:FindFirstChild("HumanoidRootPart") or 
+                     char:FindFirstChild("Torso")
+    
+    if not RootPart then return end
+    
+    pcall(function()
+        table.sort(ObjectList, function(ChestA, ChestB)
+            if not ChestA or not ChestB then return false end
+            if not ChestA.Parent or not ChestB.Parent then return false end
+            
+            local RootPos = RootPart.Position
+            local DistanceA = (RootPos - ChestA.Position).Magnitude
+            local DistanceB = (RootPos - ChestB.Position).Magnitude
+            return DistanceA < DistanceB
+        end)
     end)
 end
 
+-- Safe chest finder
 local UncheckedChests, FirstRun = {}, true
 local function getChestsSorted()
-    if FirstRun then
-        FirstRun = false
-        for _, Object in pairs(game:GetDescendants()) do
-            if Object.Name:find("Chest") and Object.ClassName == "Part" then
-                table.insert(UncheckedChests, Object)
+    local Chests = {}
+    
+    pcall(function()
+        if FirstRun then
+            FirstRun = false
+            for _, Object in pairs(workspace:GetDescendants()) do
+                if Object:IsA("Part") and Object.Name:find("Chest") then
+                    table.insert(UncheckedChests, Object)
+                end
             end
         end
-    end
-    local Chests = {}
-    for _, Chest in pairs(UncheckedChests) do
-        if Chest:FindFirstChild("TouchInterest") then
-            table.insert(Chests, Chest)
+        
+        for i = #UncheckedChests, 1, -1 do
+            local Chest = UncheckedChests[i]
+            if Chest and Chest.Parent then
+                if Chest:FindFirstChild("TouchInterest") then
+                    table.insert(Chests, Chest)
+                end
+            else
+                table.remove(UncheckedChests, i)
+            end
         end
-    end
-    DistanceFromPlrSort(Chests)
+        
+        DistanceFromPlrSort(Chests)
+    end)
+    
     return Chests
 end
 
+-- Safe noclip toggle
 local function toggleNoclip(Toggle)
-    for _, v in pairs(getCharacter():GetChildren()) do
-        if v:IsA("BasePart") then
-            v.CanCollide = not Toggle
+    local char = getCharacter()
+    if not char then return end
+    
+    pcall(function()
+        for _, v in pairs(char:GetChildren()) do
+            if v:IsA("BasePart") and v.Name ~= "HumanoidRootPart" then
+                v.CanCollide = not Toggle
+            end
         end
-    end
+    end)
 end
 
+-- Safe teleport
 local function Teleport(Goal)
-    local RootPart = getCharacter():FindFirstChild("HumanoidRootPart")
-    if RootPart then
+    local char = getCharacter()
+    if not char then return end
+    
+    local RootPart = char:FindFirstChild("HumanoidRootPart") or char:FindFirstChild("Torso")
+    if not RootPart then return end
+    
+    pcall(function()
         toggleNoclip(true)
         RootPart.CFrame = Goal + Vector3.new(0, 3, 0)
+        wait(0.1)
         toggleNoclip(false)
-    end
+    end)
 end
 
--- Create Main GUI
-local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "KhiCamFarmGUI"
-ScreenGui.ResetOnSpawn = false
-ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+-- Safe notification
+local function SafeNotify(title, text, duration)
+    pcall(function()
+        StarterGui:SetCore("SendNotification", {
+            Title = title,
+            Text = text,
+            Icon = IconID,
+            Duration = duration or 3
+        })
+    end)
+end
 
--- Toggle Button (Always Visible)
+-- Create GUI safely
+local ScreenGui = nil
+pcall(function()
+    ScreenGui = Instance.new("ScreenGui")
+    ScreenGui.Name = "KhiCamFarmGUI"
+    ScreenGui.ResetOnSpawn = false
+    ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+    
+    if LocalPlayer:FindFirstChild("PlayerGui") then
+        ScreenGui.Parent = LocalPlayer.PlayerGui
+    else
+        warn("PlayerGui not found!")
+        return
+    end
+end)
+
+if not ScreenGui then
+    warn("Failed to create GUI!")
+    return
+end
+
+-- Toggle Button
 local ToggleButton = Instance.new("ImageButton")
 ToggleButton.Name = "ToggleButton"
 ToggleButton.Image = IconID
@@ -98,7 +191,6 @@ ToggleButton.Position = UDim2.new(0, 10, 0.5, -40)
 ToggleButton.Size = UDim2.new(0, 80, 0, 80)
 ToggleButton.Parent = ScreenGui
 
--- Toggle Button Effects
 local ToggleCorner = Instance.new("UICorner")
 ToggleCorner.CornerRadius = UDim.new(1, 0)
 ToggleCorner.Parent = ToggleButton
@@ -108,20 +200,22 @@ ToggleStroke.Color = Color3.fromRGB(255, 200, 0)
 ToggleStroke.Thickness = 3
 ToggleStroke.Parent = ToggleButton
 
--- Pulse Animation for Toggle
+-- Safe animation
 spawn(function()
-    while true do
-        TweenService:Create(ToggleButton, TweenInfo.new(1, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {
-            Size = UDim2.new(0, 85, 0, 85),
-            Rotation = 5
-        }):Play()
-        wait(1)
-        TweenService:Create(ToggleButton, TweenInfo.new(1, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {
-            Size = UDim2.new(0, 80, 0, 80),
-            Rotation = -5
-        }):Play()
-        wait(1)
-    end
+    pcall(function()
+        while ToggleButton.Parent do
+            TweenService:Create(ToggleButton, TweenInfo.new(1, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {
+                Size = UDim2.new(0, 85, 0, 85),
+                Rotation = 5
+            }):Play()
+            wait(1)
+            TweenService:Create(ToggleButton, TweenInfo.new(1, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {
+                Size = UDim2.new(0, 80, 0, 80),
+                Rotation = -5
+            }):Play()
+            wait(1)
+        end
+    end)
 end)
 
 -- Main Frame
@@ -136,12 +230,11 @@ MainFrame.Active = true
 MainFrame.Draggable = true
 MainFrame.Parent = ScreenGui
 
--- Main Frame Design
 local MainCorner = Instance.new("UICorner")
 MainCorner.CornerRadius = UDim.new(0, 25)
 MainCorner.Parent = MainFrame
 
--- Animated Gradient Background
+-- Gradient
 local MainGradient = Instance.new("UIGradient")
 MainGradient.Color = ColorSequence.new{
     ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 100, 0)),
@@ -151,17 +244,20 @@ MainGradient.Color = ColorSequence.new{
 MainGradient.Rotation = 0
 MainGradient.Parent = MainFrame
 
--- Animate gradient rotation
+-- Safe gradient animation
 spawn(function()
-    while true do
-        for i = 0, 360, 2 do
-            MainGradient.Rotation = i
-            wait(0.05)
+    pcall(function()
+        while MainFrame.Parent do
+            for i = 0, 360, 2 do
+                if not MainGradient.Parent then break end
+                MainGradient.Rotation = i
+                wait(0.05)
+            end
         end
-    end
+    end)
 end)
 
--- Inner Frame (Content)
+-- Inner Frame
 local InnerFrame = Instance.new("Frame")
 InnerFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
 InnerFrame.Position = UDim2.new(0, 3, 0, 3)
@@ -182,14 +278,7 @@ local TitleCorner = Instance.new("UICorner")
 TitleCorner.CornerRadius = UDim.new(0, 23)
 TitleCorner.Parent = TitleBar
 
-local TitleFix = Instance.new("Frame")
-TitleFix.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
-TitleFix.Position = UDim2.new(0, 0, 0.5, 0)
-TitleFix.Size = UDim2.new(1, 0, 0.5, 0)
-TitleFix.BorderSizePixel = 0
-TitleFix.Parent = TitleBar
-
--- Icon in Title
+-- Title Icon
 local TitleIcon = Instance.new("ImageLabel")
 TitleIcon.Image = IconID
 TitleIcon.BackgroundTransparency = 1
@@ -197,62 +286,17 @@ TitleIcon.Position = UDim2.new(0, 15, 0.5, -25)
 TitleIcon.Size = UDim2.new(0, 50, 0, 50)
 TitleIcon.Parent = TitleBar
 
--- Rotate icon animation
-spawn(function()
-    while true do
-        TweenService:Create(TitleIcon, TweenInfo.new(2, Enum.EasingStyle.Linear), {
-            Rotation = 360
-        }):Play()
-        wait(2)
-        TitleIcon.Rotation = 0
-    end
-end)
-
--- Animated Title Text
+-- Title Text
 local TitleText = Instance.new("TextLabel")
 TitleText.BackgroundTransparency = 1
 TitleText.Position = UDim2.new(0, 75, 0, 0)
 TitleText.Size = UDim2.new(0.7, 0, 1, 0)
 TitleText.Font = Enum.Font.GothamBold
 TitleText.RichText = true
-TitleText.Text = ""
+TitleText.Text = '🐵 KHỈ CAM FARM <font color="rgb(255,140,0)">[DEMO]</font>'
 TitleText.TextColor3 = Color3.fromRGB(255, 255, 255)
 TitleText.TextSize = 22
 TitleText.Parent = TitleBar
-
--- Animated title typing effect
-spawn(function()
-    while true do
-        local text = "🐵 KHỈ CAM FARM "
-        local demo = "[DEMO]"
-        
-        -- Type main text
-        for i = 1, #text do
-            TitleText.Text = string.sub(text, 1, i)
-            TitleText.TextColor3 = Color3.fromHSV((i * 20) % 360 / 360, 1, 1)
-            wait(0.05)
-        end
-        
-        -- Add demo with orange color
-        TitleText.Text = text .. '<font color="rgb(255,140,0)">' .. demo .. '</font>'
-        
-        -- Rainbow effect
-        for i = 0, 360, 10 do
-            TitleText.TextColor3 = Color3.fromHSV(i/360, 1, 1)
-            wait(0.05)
-        end
-        
-        -- Fade out
-        for i = 1, 10 do
-            TitleText.TextTransparency = i/10
-            wait(0.05)
-        end
-        
-        TitleText.TextTransparency = 0
-        TitleText.Text = ""
-        wait(0.5)
-    end
-end)
 
 -- Close Button
 local CloseButton = Instance.new("TextButton")
@@ -269,320 +313,90 @@ local CloseCorner = Instance.new("UICorner")
 CloseCorner.CornerRadius = UDim.new(1, 0)
 CloseCorner.Parent = CloseButton
 
--- Tab Container
-local TabContainer = Instance.new("Frame")
-TabContainer.BackgroundTransparency = 1
-TabContainer.Position = UDim2.new(0, 15, 0, 70)
-TabContainer.Size = UDim2.new(1, -30, 0, 45)
-TabContainer.Parent = InnerFrame
+-- Content
+local ContentFrame = Instance.new("ScrollingFrame")
+ContentFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
+ContentFrame.BorderSizePixel = 0
+ContentFrame.Position = UDim2.new(0, 15, 0, 70)
+ContentFrame.Size = UDim2.new(1, -30, 1, -85)
+ContentFrame.ScrollBarThickness = 8
+ContentFrame.Parent = InnerFrame
 
--- Create tabs
-local tabs = {
-    {name = "Farm", icon = "📦", color = Color3.fromRGB(255, 100, 50)},
-    {name = "Stats", icon = "📊", color = Color3.fromRGB(50, 200, 255)},
-    {name = "Settings", icon = "⚙️", color = Color3.fromRGB(150, 100, 255)}
-}
+local ContentCorner = Instance.new("UICorner")
+ContentCorner.CornerRadius = UDim.new(0, 20)
+ContentCorner.Parent = ContentFrame
 
-local CurrentTab = "Farm"
-local tabButtons = {}
-local tabFrames = {}
-
-for i, tab in ipairs(tabs) do
-    -- Tab button
-    local TabButton = Instance.new("TextButton")
-    TabButton.BackgroundColor3 = i == 1 and tab.color or Color3.fromRGB(40, 40, 45)
-    TabButton.Position = UDim2.new((i-1) * 0.33, i > 1 and 5 or 0, 0, 0)
-    TabButton.Size = UDim2.new(0.33, i == 2 and -10 or -5, 1, 0)
-    TabButton.Font = Enum.Font.GothamBold
-    TabButton.Text = tab.icon .. " " .. tab.name
-    TabButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-    TabButton.TextSize = 16
-    TabButton.Parent = TabContainer
-    
-    local TabCorner = Instance.new("UICorner")
-    TabCorner.CornerRadius = UDim.new(0, 12)
-    TabCorner.Parent = TabButton
-    
-    tabButtons[tab.name] = TabButton
-    
-    -- Tab frame
-    local TabFrame = Instance.new("ScrollingFrame")
-    TabFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
-    TabFrame.BorderSizePixel = 0
-    TabFrame.Position = UDim2.new(0, 15, 0, 125)
-    TabFrame.Size = UDim2.new(1, -30, 1, -140)
-    TabFrame.ScrollBarThickness = 8
-    TabFrame.ScrollBarImageColor3 = tab.color
-    TabFrame.Visible = i == 1
-    TabFrame.Parent = InnerFrame
-    
-    local FrameCorner = Instance.new("UICorner")
-    FrameCorner.CornerRadius = UDim.new(0, 20)
-    FrameCorner.Parent = TabFrame
-    
-    tabFrames[tab.name] = TabFrame
-    
-    -- Tab click animation
-    TabButton.MouseButton1Click:Connect(function()
-        CurrentTab = tab.name
-        
-        -- Update colors
-        for name, btn in pairs(tabButtons) do
-            local tabData = tabs[name == "Farm" and 1 or name == "Stats" and 2 or 3]
-            TweenService:Create(btn, TweenInfo.new(0.3, Enum.EasingStyle.Quad), {
-                BackgroundColor3 = name == CurrentTab and tabData.color or Color3.fromRGB(40, 40, 45)
-            }):Play()
-        end
-        
-        -- Update visibility with animation
-        for name, frame in pairs(tabFrames) do
-            if name == CurrentTab then
-                frame.Visible = true
-                frame.Size = UDim2.new(0, 0, 1, -140)
-                TweenService:Create(frame, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
-                    Size = UDim2.new(1, -30, 1, -140)
-                }):Play()
-            else
-                TweenService:Create(frame, TweenInfo.new(0.2), {
-                    Size = UDim2.new(0, 0, 1, -140)
-                }):Play()
-                spawn(function()
-                    wait(0.2)
-                    frame.Visible = false
-                end)
-            end
-        end
-    end)
-end
-
--- FARM TAB CONTENT
-local FarmFrame = tabFrames["Farm"]
-
--- Farm Status Card
-local StatusCard = Instance.new("Frame")
-StatusCard.BackgroundColor3 = Color3.fromRGB(35, 35, 40)
-StatusCard.Position = UDim2.new(0, 10, 0, 10)
-StatusCard.Size = UDim2.new(1, -20, 0, 100)
-StatusCard.Parent = FarmFrame
-
-local StatusCorner = Instance.new("UICorner")
-StatusCorner.CornerRadius = UDim.new(0, 15)
-StatusCorner.Parent = StatusCard
-
-local StatusGradient = Instance.new("UIGradient")
-StatusGradient.Color = ColorSequence.new{
-    ColorSequenceKeypoint.new(0, Color3.fromRGB(50, 50, 55)),
-    ColorSequenceKeypoint.new(1, Color3.fromRGB(35, 35, 40))
-}
-StatusGradient.Rotation = 90
-StatusGradient.Parent = StatusCard
-
+-- Status Display
 local StatusLabel = Instance.new("TextLabel")
-StatusLabel.BackgroundTransparency = 1
-StatusLabel.Position = UDim2.new(0, 15, 0, 10)
-StatusLabel.Size = UDim2.new(1, -30, 0, 30)
+StatusLabel.BackgroundColor3 = Color3.fromRGB(35, 35, 40)
+StatusLabel.Position = UDim2.new(0, 10, 0, 10)
+StatusLabel.Size = UDim2.new(1, -20, 0, 40)
 StatusLabel.Font = Enum.Font.GothamBold
 StatusLabel.Text = "FARM STATUS: INACTIVE"
 StatusLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
 StatusLabel.TextSize = 18
-StatusLabel.Parent = StatusCard
+StatusLabel.Parent = ContentFrame
 
+local StatusCorner = Instance.new("UICorner")
+StatusCorner.CornerRadius = UDim.new(0, 10)
+StatusCorner.Parent = StatusLabel
+
+-- Info Labels
 local ChestLabel = Instance.new("TextLabel")
 ChestLabel.BackgroundTransparency = 1
-ChestLabel.Position = UDim2.new(0, 15, 0, 40)
-ChestLabel.Size = UDim2.new(1, -30, 0, 25)
+ChestLabel.Position = UDim2.new(0, 10, 0, 60)
+ChestLabel.Size = UDim2.new(1, -20, 0, 30)
 ChestLabel.Font = Enum.Font.Gotham
 ChestLabel.Text = "📦 Chests Collected: 0"
 ChestLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
-ChestLabel.TextSize = 14
-ChestLabel.Parent = StatusCard
+ChestLabel.TextSize = 16
+ChestLabel.Parent = ContentFrame
 
 local TimeLabel = Instance.new("TextLabel")
 TimeLabel.BackgroundTransparency = 1
-TimeLabel.Position = UDim2.new(0, 15, 0, 65)
-TimeLabel.Size = UDim2.new(1, -30, 0, 25)
+TimeLabel.Position = UDim2.new(0, 10, 0, 90)
+TimeLabel.Size = UDim2.new(1, -20, 0, 30)
 TimeLabel.Font = Enum.Font.Gotham
 TimeLabel.Text = "⏰ Farm Time: 00:00:00"
 TimeLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
-TimeLabel.TextSize = 14
-TimeLabel.Parent = StatusCard
+TimeLabel.TextSize = 16
+TimeLabel.Parent = ContentFrame
 
--- Farm Toggle Button
+-- Farm Button
 local FarmButton = Instance.new("TextButton")
 FarmButton.BackgroundColor3 = Color3.fromRGB(50, 200, 50)
-FarmButton.Position = UDim2.new(0.5, -100, 0, 120)
+FarmButton.Position = UDim2.new(0.5, -100, 0, 130)
 FarmButton.Size = UDim2.new(0, 200, 0, 60)
 FarmButton.Font = Enum.Font.GothamBold
 FarmButton.Text = "🚀 START FARMING"
 FarmButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 FarmButton.TextSize = 18
-FarmButton.Parent = FarmFrame
+FarmButton.Parent = ContentFrame
 
 local FarmCorner = Instance.new("UICorner")
 FarmCorner.CornerRadius = UDim.new(0, 15)
 FarmCorner.Parent = FarmButton
 
--- Animated button effect
-spawn(function()
-    while true do
-        if FarmingEnabled then
-            for i = 0, 360, 10 do
-                FarmButton.BackgroundColor3 = Color3.fromHSV(i/360, 0.8, 0.8)
-                wait(0.05)
-            end
-        else
-            wait(1)
-        end
-    end
-end)
-
--- Features List
-local FeaturesTitle = Instance.new("TextLabel")
-FeaturesTitle.BackgroundTransparency = 1
-FeaturesTitle.Position = UDim2.new(0, 10, 0, 190)
-FeaturesTitle.Size = UDim2.new(1, -20, 0, 30)
-FeaturesTitle.Font = Enum.Font.GothamBold
-FeaturesTitle.Text = "✨ FEATURES"
-FeaturesTitle.TextColor3 = Color3.fromRGB(255, 200, 100)
-FeaturesTitle.TextSize = 16
-FeaturesTitle.Parent = FarmFrame
-
-local features = {
-    "✅ Auto Collect Chests",
-    "✅ Auto Noclip",
-    "✅ Distance Sort",
-    "✅ Auto Team Set",
-    "✅ Anti-Kick"
-}
-
-for i, feature in ipairs(features) do
-    local FeatureLabel = Instance.new("TextLabel")
-    FeatureLabel.BackgroundTransparency = 1
-    FeatureLabel.Position = UDim2.new(0, 20, 0, 220 + (i-1) * 25)
-    FeatureLabel.Size = UDim2.new(1, -40, 0, 20)
-    FeatureLabel.Font = Enum.Font.Gotham
-    FeatureLabel.Text = feature
-    FeatureLabel.TextColor3 = Color3.fromRGB(180, 180, 180)
-    FeatureLabel.TextSize = 14
-    FeatureLabel.TextXAlignment = Enum.TextXAlignment.Left
-    FeatureLabel.Parent = FarmFrame
+-- Warning if not Blox Fruits
+if not isBloxFruits then
+    local WarningLabel = Instance.new("TextLabel")
+    WarningLabel.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
+    WarningLabel.Position = UDim2.new(0, 10, 0, 200)
+    WarningLabel.Size = UDim2.new(1, -20, 0, 60)
+    WarningLabel.Font = Enum.Font.GothamBold
+    WarningLabel.Text = "⚠️ WARNING: This is not Blox Fruits!\nScript may not work properly!"
+    WarningLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    WarningLabel.TextSize = 14
+    WarningLabel.Parent = ContentFrame
     
-    -- Fade in animation
-    FeatureLabel.TextTransparency = 1
-    spawn(function()
-        wait(i * 0.1)
-        TweenService:Create(FeatureLabel, TweenInfo.new(0.5), {
-            TextTransparency = 0
-        }):Play()
-    end)
+    local WarningCorner = Instance.new("UICorner")
+    WarningCorner.CornerRadius = UDim.new(0, 10)
+    WarningCorner.Parent = WarningLabel
 end
 
-FarmFrame.CanvasSize = UDim2.new(0, 0, 0, 400)
+ContentFrame.CanvasSize = UDim2.new(0, 0, 0, 300)
 
--- STATS TAB CONTENT
-local StatsFrame = tabFrames["Stats"]
-
-local StatsDisplay = Instance.new("TextLabel")
-StatsDisplay.BackgroundColor3 = Color3.fromRGB(35, 35, 40)
-StatsDisplay.Position = UDim2.new(0, 10, 0, 10)
-StatsDisplay.Size = UDim2.new(1, -20, 1, -20)
-StatsDisplay.Font = Enum.Font.Gotham
-StatsDisplay.Text = "📊 STATISTICS\n\nLoading..."
-StatsDisplay.TextColor3 = Color3.fromRGB(255, 255, 255)
-StatsDisplay.TextSize = 16
-StatsDisplay.TextYAlignment = Enum.TextYAlignment.Top
-StatsDisplay.Parent = StatsFrame
-
-local StatsCorner = Instance.new("UICorner")
-StatsCorner.CornerRadius = UDim.new(0, 15)
-StatsCorner.Parent = StatsDisplay
-
--- Update stats
-spawn(function()
-    while true do
-        if FarmingEnabled then
-            local runtime = tick() - StartTime
-            local hours = math.floor(runtime / 3600)
-            local minutes = math.floor((runtime % 3600) / 60)
-            local seconds = math.floor(runtime % 60)
-            
-            StatsDisplay.Text = string.format([[
-📊 FARMING STATISTICS
-
-📦 Total Chests: %d
-⏱️ Total Time: %02d:%02d:%02d
-📈 Chests/Hour: %.1f
-🎯 Current Target: %s
-🌍 Server Time: %s
-👤 Username: %s
-]], 
-                ChestCount,
-                hours, minutes, seconds,
-                ChestCount / (runtime / 3600),
-                "Searching...",
-                os.date("%X"),
-                LocalPlayer.Name
-            )
-        end
-        wait(1)
-    end
-end)
-
--- SETTINGS TAB CONTENT
-local SettingsFrame = tabFrames["Settings"]
-
-local settings = {
-    {name = "Auto Rejoin", enabled = false},
-    {name = "Low Graphics", enabled = false},
-    {name = "Hide Username", enabled = false}
-}
-
-for i, setting in ipairs(settings) do
-    local SettingFrame = Instance.new("Frame")
-    SettingFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 40)
-    SettingFrame.Position = UDim2.new(0, 10, 0, 10 + (i-1) * 60)
-    SettingFrame.Size = UDim2.new(1, -20, 0, 50)
-    SettingFrame.Parent = SettingsFrame
-    
-    local SettingCorner = Instance.new("UICorner")
-    SettingCorner.CornerRadius = UDim.new(0, 12)
-    SettingCorner.Parent = SettingFrame
-    
-    local SettingLabel = Instance.new("TextLabel")
-    SettingLabel.BackgroundTransparency = 1
-    SettingLabel.Position = UDim2.new(0, 15, 0, 0)
-    SettingLabel.Size = UDim2.new(0.6, 0, 1, 0)
-    SettingLabel.Font = Enum.Font.Gotham
-    SettingLabel.Text = setting.name
-    SettingLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-    SettingLabel.TextSize = 16
-    SettingLabel.TextXAlignment = Enum.TextXAlignment.Left
-    SettingLabel.Parent = SettingFrame
-    
-    local ToggleSwitch = Instance.new("TextButton")
-    ToggleSwitch.BackgroundColor3 = setting.enabled and Color3.fromRGB(50, 200, 50) or Color3.fromRGB(200, 50, 50)
-    ToggleSwitch.Position = UDim2.new(1, -70, 0.5, -15)
-    ToggleSwitch.Size = UDim2.new(0, 50, 0, 30)
-    ToggleSwitch.Font = Enum.Font.GothamBold
-    ToggleSwitch.Text = setting.enabled and "ON" or "OFF"
-    ToggleSwitch.TextColor3 = Color3.fromRGB(255, 255, 255)
-    ToggleSwitch.TextSize = 14
-    ToggleSwitch.Parent = SettingFrame
-    
-    local SwitchCorner = Instance.new("UICorner")
-    SwitchCorner.CornerRadius = UDim.new(1, 0)
-    SwitchCorner.Parent = ToggleSwitch
-    
-    ToggleSwitch.MouseButton1Click:Connect(function()
-        setting.enabled = not setting.enabled
-        ToggleSwitch.Text = setting.enabled and "ON" or "OFF"
-        TweenService:Create(ToggleSwitch, TweenInfo.new(0.3), {
-            BackgroundColor3 = setting.enabled and Color3.fromRGB(50, 200, 50) or Color3.fromRGB(200, 50, 50)
-        }):Play()
-    end)
-end
-
--- Farm Toggle Function
+-- Safe farm toggle
 local function toggleFarm()
     FarmingEnabled = not FarmingEnabled
     
@@ -594,169 +408,150 @@ local function toggleFarm()
         StatusLabel.Text = "FARM STATUS: ACTIVE"
         StatusLabel.TextColor3 = Color3.fromRGB(50, 255, 50)
         
-        -- Notification
-        StarterGui:SetCore("SendNotification", {
-            Title = "🐵 KHỈ CAM FARM",
-            Text = "Chest farming started!",
-            Icon = IconID,
-            Duration = 3
-        })
+        SafeNotify("🐵 KHỈ CAM FARM", "Chest farming started!", 3)
         
-        -- Start farming
+        -- Safe farming loop
         FarmConnection = task.spawn(function()
             while FarmingEnabled do
-                task.wait()
-                local Chests = getChestsSorted()
-                if #Chests > 0 then
-                    Teleport(Chests[1].CFrame)
-                    ChestCount = ChestCount + 1
-                    ChestLabel.Text = "📦 Chests Collected: " .. ChestCount
-                end
-            end
-        end)
-        
-        -- Auto set team
-        task.spawn(function()
-            while FarmingEnabled do
-                task.wait(5)
                 pcall(function()
-            
-            -- Notification
-        StarterGui:SetCore("SendNotification", {
-            Title = "🐵 KHỈ CAM FARM",
-            Text = "Chest farming started!",
-            Icon = IconID,
-            Duration = 3
-        })
-        
-        -- Start farming
-        FarmConnection = task.spawn(function()
-            while FarmingEnabled do
-                task.wait()
-                local Chests = getChestsSorted()
-                if #Chests > 0 then
-                    Teleport(Chests[1].CFrame)
-                    ChestCount = ChestCount + 1
-                    ChestLabel.Text = "📦 Chests Collected: " .. ChestCount
-                end
-            end
-        end)
-        
-        -- Auto set team
-        task.spawn(function()
-            while FarmingEnabled do
-                task.wait(5)
-                pcall(function()
-                    ReplicatedStorage.Remotes.CommF_:InvokeServer("SetTeam", "Marines")
+                    task.wait()
+                    local Chests = getChestsSorted()
+                    if Chests and #Chests > 0 then
+                        Teleport(Chests[1].CFrame)
+                        ChestCount = ChestCount + 1
+                        ChestLabel.Text = "📦 Chests Collected: " .. ChestCount
+                    end
                 end)
             end
         end)
         
-        else
+        -- Safe team set (only for Blox Fruits)
+        if isBloxFruits then
+            task.spawn(function()
+                while FarmingEnabled do
+                    task.wait(5)
+                    pcall(function()
+                        if ReplicatedStorage:FindFirstChild("Remotes") then
+                            local CommF = ReplicatedStorage.Remotes:FindFirstChild("CommF_")
+                            if CommF then
+                                CommF:InvokeServer("SetTeam", "Marines")
+                            end
+                        end
+                    end)
+                end
+            end)
+        end
+        
+    else
         FarmButton.Text = "🚀 START FARMING"
         StatusLabel.Text = "FARM STATUS: INACTIVE"
         StatusLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
         
         if FarmConnection then
-            task.cancel(FarmConnection)
+            pcall(function() task.cancel(FarmConnection) end)
         end
         
-        -- Notification
-        StarterGui:SetCore("SendNotification", {
-            Title = "🐵 KHỈ CAM FARM",
-            Text = "Chest farming stopped!",
-            Icon = IconID,
-            Duration = 3
-        })
+        SafeNotify("🐵 KHỈ CAM FARM", "Chest farming stopped!", 3)
     end
 end
-FarmButton.MouseButton1Click:Connect(toggleFarm)
 
--- Update timer
-spawn(function()
-    while true do
-        if FarmingEnabled then
-            local runtime = tick() - StartTime
-            local hours = math.floor(runtime / 3600)
-            local minutes = math.floor((runtime % 3600) / 60)
-            local seconds = math.floor(runtime % 60)
-            TimeLabel.Text = string.format("⏰ Farm Time: %02d:%02d:%02d", hours, minutes, seconds)
-        end
-        wait(1)
-    end
+-- Safe button connection
+pcall(function()
+    FarmButton.MouseButton1Click:Connect(toggleFarm)
 end)
 
--- Toggle UI
+-- Safe timer update
+spawn(function()
+    pcall(function()
+        while ScreenGui.Parent do
+            if FarmingEnabled then
+                local runtime = tick() - StartTime
+                local hours = math.floor(runtime / 3600)
+                local minutes = math.floor((runtime % 3600) / 60)
+                local seconds = math.floor(runtime % 60)
+                TimeLabel.Text = string.format("⏰ Farm Time: %02d:%02d:%02d", hours, minutes, seconds)
+            end
+            wait(1)
+        end
+    end)
+end)
+
+-- Safe UI toggle
 local UIVisible = false
 local function toggleUI()
     UIVisible = not UIVisible
-    if UIVisible then
-        MainFrame.Visible = true
-        MainFrame.Size = UDim2.new(0, 0, 0, 0)
-        MainFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
-        
-        TweenService:Create(MainFrame, TweenInfo.new(0.5, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
-            Size = UDim2.new(0, 500, 0, 500),
-            Position = UDim2.new(0.5, -250, 0.5, -250)
-        }):Play()
-        
-        
-       StarterGui:SetCore("SendNotification", {
-            Title = "🐵 KHỈ CAM FARM [DEMO]",
-            Text = "UI Opened!",
-            Icon = IconID,
-            Duration = 2
-        })
-    else
     
-    TweenService:Create(MainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.In), {
-            Size = UDim2.new(0, 0, 0, 0),
-            Position = UDim2.new(0.5, 0, 0.5, 0)
-        }):Play()
-        
-        wait(0.3)
-        MainFrame.Visible = false
-    end
+    pcall(function()
+        if UIVisible then
+            MainFrame.Visible = true
+            MainFrame.Size = UDim2.new(0, 0, 0, 0)
+            MainFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
+            
+            TweenService:Create(MainFrame, TweenInfo.new(0.5, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+                Size = UDim2.new(0, 500, 0, 500),
+                Position = UDim2.new(0.5, -250, 0.5, -250)
+            }):Play()
+            
+            SafeNotify("🐵 KHỈ CAM FARM [DEMO]", "UI Opened!", 2)
+        else
+            TweenService:Create(MainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.In), {
+                Size = UDim2.new(0, 0, 0, 0),
+                Position = UDim2.new(0.5, 0, 0.5, 0)
+            }):Play()
+            
+            wait(0.3)
+            MainFrame.Visible = false
+        end
+    end)
 end
 
-ToggleButton.MouseButton1Click:Connect(toggleUI)
-CloseButton.MouseButton1Click:Connect(toggleUI)
-
--- Rainbow border effect
-spawn(function()
-    while true do
-        for i = 0, 360, 5 do
-            ToggleStroke.Color = Color3.fromHSV(i/360, 1, 1)
-            wait(0.05)
-        end
-    end
+-- Safe button connections
+pcall(function()
+    ToggleButton.MouseButton1Click:Connect(toggleUI)
+    CloseButton.MouseButton1Click:Connect(toggleUI)
 end)
 
--- Rainbow border effect
+-- Safe rainbow effect
 spawn(function()
-    while true do
-        for i = 0, 360, 5 do
-            ToggleStroke.Color = Color3.fromHSV(i/360, 1, 1)
-            wait(0.05)
+    pcall(function()
+        while ToggleStroke.Parent do
+            for i = 0, 360, 5 do
+                if not ToggleStroke.Parent then break end
+                ToggleStroke.Color = Color3.fromHSV(i/360, 1, 1)
+                wait(0.05)
+            end
         end
-    end
+    end)
 end)
 
--- Character respawn handler
-LocalPlayer.CharacterAdded:Connect(function()
-    task.wait(1)
-    if FarmingEnabled then
-        toggleFarm() -- Restart farm
-        toggleFarm()
-    end
+-- Safe character respawn handler
+pcall(function()
+    LocalPlayer.CharacterAdded:Connect(function()
+        task.wait(1)
+        if FarmingEnabled then
+            toggleFarm() -- Restart
+            toggleFarm()
+        end
+    end)
 end)
 
 -- Initial notification
-StarterGui:SetCore("SendNotification", {
-    Title = "🐵 KHỈ CAM FARM [DEMO]",
-    Text = "Script loaded successfully!",
-    Icon = IconID,
-    Duration = 5
-})
+SafeNotify("🐵 KHỈ CAM FARM [DEMO]", "Script loaded successfully!", 5)
 
-print("🐵 Khỉ Cam Farm [DEMO] - Loaded!")
+print("🐵 Khỉ Cam Farm [DEMO] - Loaded without errors!")
+
+end) -- End of main pcall
+
+-- Error handling
+if not success then
+    warn("Script error: " .. tostring(err))
+    
+    -- Try to show error notification
+    pcall(function()
+        game:GetService("StarterGui"):SetCore("SendNotification", {
+            Title = "❌ SCRIPT ERROR",
+            Text = "Failed to load! Check console (F9)",
+            Duration = 10
+        })
+    end)
+end
